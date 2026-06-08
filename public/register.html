@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Register</title>
+
+<style>
+body{
+    background:#0f1117;
+    color:white;
+    font-family:sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.box{
+    width:320px;
+    background:#1a1d29;
+    padding:20px;
+    border-radius:16px;
+}
+
+input,button{
+    width:100%;
+    margin-top:12px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+}
+
+button{
+    background:#5865f2;
+    color:white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h1>Register</h1>
+
+<input id="u" placeholder="username">
+
+<input
+id="p"
+type="password"
+placeholder="password"
+>
+
+<input
+id="k"
+placeholder="owner key optional"
+>
+
+<button onclick="reg()">
+Create
+</button>
+
+</div>
+
+<script>
+async function reg(){
+
+    const r = await fetch("/api/register",{
+        method:"POST",
+        headers:{
+            "content-type":"application/json"
+        },
+        body:JSON.stringify({
+            username:u.value,
+            password:p.value,
+            key:k.value
+        })
+    })
+
+    const d = await r.json()
+
+    if(d.success){
+        location="/login.html"
+    }else{
+        alert(d.error)
+    }
+}
+</script>
+
+</body>
+</html>
