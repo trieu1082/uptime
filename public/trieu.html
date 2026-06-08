@@ -12,9 +12,9 @@ body{
     padding:20px;
 }
 
-.top{
+.box{
     background:#1a1d29;
-    padding:15px;
+    padding:20px;
     border-radius:16px;
 }
 
@@ -27,8 +27,8 @@ body{
 
 input,select,button{
     width:100%;
-    margin-top:10px;
     padding:12px;
+    margin-top:10px;
     border:none;
     border-radius:10px;
 }
@@ -50,7 +50,7 @@ button{
 
 <body>
 
-<div class="top">
+<div class="box">
 
 <h1>Trieu Uptime</h1>
 
@@ -64,23 +64,51 @@ placeholder="https://web.com"
 >
 
 <select id="method">
-    <option value="curl">
-        curl
-    </option>
 
-    <option value="browser">
-        browser
-    </option>
+<option value="curl">
+curl
+</option>
+
+<option value="head">
+head
+</option>
+
+<option value="status">
+status
+</option>
+
+<option value="ping">
+ping
+</option>
+
+<option value="browser">
+browser
+</option>
+
 </select>
 
 <select id="interval">
-    <option value="60000">
-        1 phút
-    </option>
 
-    <option value="300000">
-        5 phút
-    </option>
+<option value="60000">
+1 phút
+</option>
+
+<option value="120000">
+2 phút
+</option>
+
+<option value="180000">
+3 phút
+</option>
+
+<option value="240000">
+4 phút
+</option>
+
+<option value="300000">
+5 phút
+</option>
+
 </select>
 
 <input
@@ -104,25 +132,28 @@ Sẵn Sàng
 <script>
 
 async function apiFetch(
-    url,
-    method="GET",
-    body
+url,
+method="GET",
+body
 ){
+
     const r = await fetch(url,{
         method,
         headers:{
             "content-type":"application/json"
         },
         body:body
-            ? JSON.stringify(body)
-            : undefined
+        ? JSON.stringify(body)
+        : undefined
     })
 
     return r.json()
 }
 
 async function loadUser(){
-    const me = await apiFetch("/api/me")
+
+    const me =
+        await apiFetch("/api/me")
 
     api.innerHTML =
 `
@@ -134,9 +165,10 @@ ${me.apiToken}
 
 async function load(){
 
-    const data = await apiFetch(
-        "/api/monitors"
-    )
+    const data =
+        await apiFetch(
+            "/api/monitors"
+        )
 
     let html = ""
 
@@ -223,8 +255,11 @@ async function del(id){
 
 async function edit(id){
 
-    const name = prompt("new name")
-    if(!name) return
+    const name =
+        prompt("new name")
+
+    if(!name)
+        return
 
     await apiFetch(
         "/api/monitor/"+id,
