@@ -5,6 +5,9 @@ const jwt = require("jsonwebtoken")
 const cookie = require("cookie-parser")
 const fs = require("fs")
 const crypto = require("crypto")
+const https = require("https")
+const http = require("http")
+const net = require("net")
 const { chromium } = require("playwright")
 
 const app = express()
@@ -19,7 +22,9 @@ app.use(express.static("public"))
 
 const load = ()=>{
     try{
-        return JSON.parse(fs.readFileSync("data.json"))
+        return JSON.parse(
+            fs.readFileSync("data.json")
+        )
     }catch{
         return {
             users:[],
@@ -67,7 +72,9 @@ const apiAuth = (req,res,next)=>{
 }
 
 const methods = {
+
     async curl(url){
+
         const start = Date.now()
 
         const res = await axios.get(url,{
@@ -83,18 +90,44 @@ const methods = {
         }
     },
 
+    async head(url){
+
+        const start = Date.now()
+
+        const res = await axios.head(url,{
+            timeout:10000
+        })
+
+        return {
+            status:res.status,
+            ping:Date.now()-start
+        }
+    },
+
     async browser(url){
+
         const start = Date.now()
 
         const browser = await chromium.launch({
-            headless:true
+            headless:true,
+            executablePath:
+                process.env.PLAYWRIGHT_BROWSERS_PATH
+                ? undefined
+                : "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
+
+            args:[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
         })
 
         const page = await browser.newPage()
 
         await page.goto(url,{
-            waitUntil:"domcontentloaded",
-            timeout:20000
+            waitUntil:"networkidle",
+            timeout:25000
         })
 
         await browser.close()
@@ -103,33 +136,111 @@ const methods = {
             status:200,
             ping:Date.now()-start
         }
+    },
+
+    async ping(url){
+
+        const start = Date.now()
+
+        return new Promise((resolve,reject)=>{
+
+            const host = new URL(url).hostname
+
+            const socket = net.createConnection(
+                80,
+                host
+            )
+
+            socket.setTimeout(10000)
+
+            socket.on("connect",()=>{
+                socket.destroy()
+
+                resolve({
+                    status:200,
+                    ping:Date.now()-start
+                })
+            })
+
+            socket.on("error",reject)
+
+            socket.on("timeout",()=>{
+                socket.destroy()
+                reject("timeout")
+            })
+        })
+    },
+
+    async status(url){
+
+        const start = Date.now()
+
+        return new Promise((resolve,reject)=>{
+
+            const fn = url.startsWith("https")
+                ? https
+                : http
+
+            const req = fn.request(
+                url,
+                {
+                    method:"GET",
+                    timeout:10000
+                },
+                res=>{
+                    resolve({
+                        status:res.statusCode,
+                        ping:Date.now()-start
+                    })
+                }
+            )
+
+            req.on("error",reject)
+
+            req.end()
+        })
     }
 }
 
-async function sendWebhook(m,type){
+async function sendWebhook(
+    m,
+    type
+){
+
     if(!m.webhook)
         return
 
     try{
-        await axios.post(m.webhook,{
-            content:
+
+        await axios.post(
+            m.webhook,
+            {
+                content:
 `${m.tag || ""}
 
-${type==="up" ? "🟢 ONLINE" : "🔴 OFFLINE"}
+${type==="up"
+? "🟢 ONLINE"
+: "🔴 OFFLINE"}
 
 Name: ${m.name}
 URL: ${m.url}
+Method: ${m.method}
 Ping: ${m.lastPing || 0}ms
-Status: ${m.lastCode || "dead"}
-Method: ${m.method}`
-        })
+Status: ${m.lastCode || 0}
+
+${m.lastError || ""}`
+            }
+        )
+
     }catch{}
 }
 
 async function check(m){
+
     const old = m.lastStatus
 
     try{
+
         const fn = methods[m.method]
 
         if(!fn)
@@ -140,8 +251,8 @@ async function check(m){
         m.lastStatus = "online"
         m.lastPing = data.ping
         m.lastCode = data.status
-        m.lastError = null
         m.lastCheck = Date.now()
+        m.lastError = null
         m.retry = 0
 
         if(old !== "online"){
@@ -157,7 +268,9 @@ async function check(m){
         }
 
         m.lastStatus = "offline"
-        m.lastError = err.message
+        m.lastError =
+            err.message || String(err)
+
         m.lastCheck = Date.now()
 
         if(old !== "offline"){
@@ -169,16 +282,24 @@ async function check(m){
 }
 
 setInterval(()=>{
+
     db.monitors.forEach(m=>{
+
         if(
-            Date.now()-m.lastCheck >= m.interval
+            Date.now()-m.lastCheck >=
+            m.interval
         ){
             check(m)
         }
+
     })
+
 },15000)
 
-app.post("/api/register",async(req,res)=>{
+app.post(
+    "/api/register",
+    async(req,res)=>{
+
     const {
         username,
         password,
@@ -204,7 +325,8 @@ app.post("/api/register",async(req,res)=>{
         })
     }
 
-    const hash = await bcrypt.hash(password,10)
+    const hash =
+        await bcrypt.hash(password,10)
 
     db.users.push({
         id:Date.now().toString(),
@@ -225,7 +347,10 @@ app.post("/api/register",async(req,res)=>{
     })
 })
 
-app.post("/api/login",async(req,res)=>{
+app.post(
+    "/api/login",
+    async(req,res)=>{
+
     const {
         username,
         password
@@ -241,10 +366,11 @@ app.post("/api/login",async(req,res)=>{
         })
     }
 
-    const ok = await bcrypt.compare(
-        password,
-        user.password
-    )
+    const ok =
+        await bcrypt.compare(
+            password,
+            user.password
+        )
 
     if(!ok){
         return res.json({
@@ -265,7 +391,11 @@ app.post("/api/login",async(req,res)=>{
     })
 })
 
-app.get("/api/me",auth,(req,res)=>{
+app.get(
+    "/api/me",
+    auth,
+    (req,res)=>{
+
     const user = db.users.find(
         x=>x.id===req.user.id
     )
@@ -278,7 +408,11 @@ app.get("/api/me",auth,(req,res)=>{
     })
 })
 
-app.get("/api/monitors",auth,(req,res)=>{
+app.get(
+    "/api/monitors",
+    auth,
+    (req,res)=>{
+
     res.json(
         db.monitors.filter(
             x=>x.user===req.user.id
@@ -286,7 +420,11 @@ app.get("/api/monitors",auth,(req,res)=>{
     )
 })
 
-app.post("/api/monitor",auth,(req,res)=>{
+app.post(
+    "/api/monitor",
+    auth,
+    (req,res)=>{
+
     const {
         name,
         url,
@@ -320,7 +458,11 @@ app.post("/api/monitor",auth,(req,res)=>{
     })
 })
 
-app.put("/api/monitor/:id",auth,(req,res)=>{
+app.put(
+    "/api/monitor/:id",
+    auth,
+    (req,res)=>{
+
     const m = db.monitors.find(
         x=>
             x.id===req.params.id &&
@@ -339,7 +481,11 @@ app.put("/api/monitor/:id",auth,(req,res)=>{
     })
 })
 
-app.delete("/api/monitor/:id",auth,(req,res)=>{
+app.delete(
+    "/api/monitor/:id",
+    auth,
+    (req,res)=>{
+
     db.monitors = db.monitors.filter(
         x=>
             !(
@@ -355,7 +501,11 @@ app.delete("/api/monitor/:id",auth,(req,res)=>{
     })
 })
 
-app.get("/api/bot/monitors",apiAuth,(req,res)=>{
+app.get(
+    "/api/bot/monitors",
+    apiAuth,
+    (req,res)=>{
+
     res.json(
         db.monitors.filter(
             x=>x.user===req.user.id
@@ -363,7 +513,11 @@ app.get("/api/bot/monitors",apiAuth,(req,res)=>{
     )
 })
 
-app.get("/api/bot/check/:id",apiAuth,(req,res)=>{
+app.get(
+    "/api/bot/check/:id",
+    apiAuth,
+    (req,res)=>{
+
     const m = db.monitors.find(
         x=>
             x.id===req.params.id &&
@@ -374,7 +528,8 @@ app.get("/api/bot/check/:id",apiAuth,(req,res)=>{
         return res.sendStatus(404)
 
     res.json({
-        alive:m.lastStatus==="online",
+        alive:
+            m.lastStatus==="online",
         status:m.lastCode,
         ping:m.lastPing,
         error:m.lastError,
@@ -382,9 +537,34 @@ app.get("/api/bot/check/:id",apiAuth,(req,res)=>{
     })
 })
 
+app.get(
+    "/api/admin/users",
+    auth,
+    (req,res)=>{
+
+    if(req.user.role!=="owner"){
+        return res.sendStatus(403)
+    }
+
+    res.json(db.users)
+})
+
+app.get(
+    "/api/admin/monitors",
+    auth,
+    (req,res)=>{
+
+    if(req.user.role!=="owner"){
+        return res.sendStatus(403)
+    }
+
+    res.json(db.monitors)
+})
+
 app.get("/",(req,res)=>{
     res.sendFile(
-        __dirname + "/public/login.html"
+        __dirname +
+        "/public/login.html"
     )
 })
 
