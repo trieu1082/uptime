@@ -2,15 +2,13 @@
   "name":"trieu-uptime",
   "main":"server.js",
   "scripts":{
-    "start":"node server.js",
-    "postinstall":"npx playwright install --with-deps chromium"
+    "start":"node server.js"
   },
   "dependencies":{
     "axios":"^1.7.2",
-    "bcrypt":"^5.1.1",
+    "bcryptjs":"^2.4.3",
     "cookie-parser":"^1.4.6",
     "express":"^4.19.2",
-    "jsonwebtoken":"^9.0.2",
-    "playwright":"^1.53.0"
+    "jsonwebtoken":"^9.0.2"
   }
 }
