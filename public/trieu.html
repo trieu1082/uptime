@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Trieu Uptime</title>
+
+<style>
+body{
+    background:#0f1117;
+    color:white;
+    font-family:sans-serif;
+    padding:20px;
+}
+
+.top{
+    background:#1a1d29;
+    padding:15px;
+    border-radius:16px;
+}
+
+.card{
+    background:#1a1d29;
+    margin-top:15px;
+    padding:15px;
+    border-radius:16px;
+}
+
+input,select,button{
+    width:100%;
+    margin-top:10px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+}
+
+button{
+    background:#5865f2;
+    color:white;
+}
+
+.green{
+    color:#57f287;
+}
+
+.red{
+    color:#ed4245;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top">
+
+<h1>Trieu Uptime</h1>
+
+<p id="api"></p>
+
+<input id="name" placeholder="name">
+
+<input
+id="url"
+placeholder="https://web.com"
+>
+
+<select id="method">
+    <option value="curl">
+        curl
+    </option>
+
+    <option value="browser">
+        browser
+    </option>
+</select>
+
+<select id="interval">
+    <option value="60000">
+        1 phút
+    </option>
+
+    <option value="300000">
+        5 phút
+    </option>
+</select>
+
+<input
+id="webhook"
+placeholder="discord webhook"
+>
+
+<input
+id="tag"
+placeholder="@everyone hoặc <@id>"
+>
+
+<button onclick="createMonitor()">
+Sẵn Sàng
+</button>
+
+</div>
+
+<div id="list"></div>
+
+<script>
+
+async function apiFetch(
+    url,
+    method="GET",
+    body
+){
+    const r = await fetch(url,{
+        method,
+        headers:{
+            "content-type":"application/json"
+        },
+        body:body
+            ? JSON.stringify(body)
+            : undefined
+    })
+
+    return r.json()
+}
+
+async function loadUser(){
+    const me = await apiFetch("/api/me")
+
+    api.innerHTML =
+`
+API TOKEN:
+<br>
+${me.apiToken}
+`
+}
+
+async function load(){
+
+    const data = await apiFetch(
+        "/api/monitors"
+    )
+
+    let html = ""
+
+    data.forEach(x=>{
+
+        html += `
+<div class="card">
+
+<h2>${x.name}</h2>
+
+<p>${x.url}</p>
+
+<p>
+Method:
+${x.method}
+</p>
+
+<p>
+Ping:
+${x.lastPing}ms
+</p>
+
+<p class="${
+x.lastStatus==="online"
+? "green"
+: "red"
+}">
+${x.lastStatus}
+</p>
+
+<p>
+Code:
+${x.lastCode}
+</p>
+
+<p>
+${x.lastError || ""}
+</p>
+
+<button onclick="edit('${x.id}')">
+Edit
+</button>
+
+<button onclick="del('${x.id}')">
+Delete
+</button>
+
+</div>
+`
+    })
+
+    list.innerHTML = html
+}
+
+async function createMonitor(){
+
+    await apiFetch(
+        "/api/monitor",
+        "POST",
+        {
+            name:name.value,
+            url:url.value,
+            method:method.value,
+            interval:interval.value,
+            webhook:webhook.value,
+            tag:tag.value
+        }
+    )
+
+    load()
+}
+
+async function del(id){
+
+    await fetch(
+        "/api/monitor/"+id,
+        {
+            method:"DELETE"
+        }
+    )
+
+    load()
+}
+
+async function edit(id){
+
+    const name = prompt("new name")
+    if(!name) return
+
+    await apiFetch(
+        "/api/monitor/"+id,
+        "PUT",
+        {
+            name
+        }
+    )
+
+    load()
+}
+
+loadUser()
+load()
+
+setInterval(load,5000)
+
+</script>
+
+</body>
+</html>
