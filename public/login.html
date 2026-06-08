@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+
+<style>
+body{
+    background:#0f1117;
+    color:white;
+    font-family:sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.box{
+    width:320px;
+    background:#1a1d29;
+    padding:20px;
+    border-radius:16px;
+}
+
+input,button{
+    width:100%;
+    margin-top:12px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+}
+
+button{
+    background:#5865f2;
+    color:white;
+}
+a{
+    color:#8ea1ff;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h1>Trieu Uptime</h1>
+
+<input id="u" placeholder="username">
+
+<input
+id="p"
+type="password"
+placeholder="password"
+>
+
+<button onclick="login()">
+Login
+</button>
+
+<p>
+<a href="/register.html">
+Register
+</a>
+</p>
+
+</div>
+
+<script>
+async function login(){
+
+    const r = await fetch("/api/login",{
+        method:"POST",
+        headers:{
+            "content-type":"application/json"
+        },
+        body:JSON.stringify({
+            username:u.value,
+            password:p.value
+        })
+    })
+
+    const d = await r.json()
+
+    if(d.success){
+        location="/trieu.html"
+    }else{
+        alert(d.error)
+    }
+}
+</script>
+
+</body>
+</html>
